@@ -1,0 +1,9 @@
+[package]
+name = "agave-abiv2-memory-contexts"
+version = "0.1.0"
+edition = "2021"
+description = "Research-oriented ABIv2 memory context, shared-memory IPC, and scheduler integration"
+license = "MIT"
+
+[lib]
+path = "src/lib.rs"
