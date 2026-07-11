@@ -291,6 +291,16 @@ impl MemoryContexts {
     /// - stale writable leakage
     /// - malformed account indexes
     /// - nested CPI corruption
+    ///
+    /// FIX: Previously this called `snapshot_frame.entries.clear()` before
+    /// re-snapshotting, which meant that if the same `region_index` appeared
+    /// more than once while building this frame's account list, only the
+    /// LAST-seen `previous_writable` value survived. On rollback this could
+    /// restore the wrong (already-mutated) writable flag instead of the
+    /// true original value from before this frame started. We now track
+    /// which region_indexes have already been snapshotted in this frame via
+    /// a HashSet and only record the FIRST previous_writable value seen for
+    /// each region_index, guaranteeing rollback restores the true original.
     pub fn update_abi_v2_account_permissions(
         &mut self,
         transaction_context: &TransactionContext,
@@ -306,7 +316,13 @@ impl MemoryContexts {
                     InstructionError::CallDepth,
                 )?;
 
-        snapshot_frame.entries.clear();
+        // FIX: Instead of clear(), use a set to track which region_indexes
+        // we've already snapshotted in THIS frame. Only snapshot the FIRST
+        // time we see each region_index.
+        let mut already_snapshotted: std::collections::HashSet<usize> =
+            snapshot_frame.entries.iter()
+                .map(|s| s.region_index)
+                .collect();
 
         let account_regions = self
             .abiv2_mappings
@@ -332,13 +348,18 @@ impl MemoryContexts {
                         InstructionError::NotEnoughAccountKeys,
                     )?;
 
-            snapshot_frame.entries.push(
-                WritableSnapshot {
-                    region_index,
-                    previous_writable:
-                        region.writable,
-                },
-            );
+            // Only snapshot if we haven't seen this region_index yet
+            // in this frame. Preserve the original entry.
+            if !already_snapshotted.contains(&region_index) {
+                snapshot_frame.entries.push(
+                    WritableSnapshot {
+                        region_index,
+                        previous_writable:
+                            region.writable,
+                    },
+                );
+                already_snapshotted.insert(region_index);
+            }
 
             region.writable =
                 account.is_writable();
@@ -348,6 +369,11 @@ impl MemoryContexts {
     }
 
     /// Rollback writable permissions for current CPI frame.
+    ///
+    /// Always restores permissions for every recorded entry, regardless of
+    /// whether this is the outermost frame or a nested CPI frame — the
+    /// stack depth is irrelevant to whether account_regions permissions
+    /// need to be restored.
     fn rollback_account_permissions(&mut self) {
         let Some(snapshot_frame) =
             self.writable_snapshot_stack.pop()
