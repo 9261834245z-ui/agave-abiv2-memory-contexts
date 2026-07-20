@@ -57,7 +57,8 @@ impl MemoryContexts {
 
         for (index, writable) in indexes {
             if self.account_regions.len() <= *index {
-                self.account_regions.resize_with(*index + 1, Default::default);
+                self.account_regions
+                    .resize_with(*index + 1, Default::default);
             }
 
             if let Some(region) = self.account_regions.get_mut(*index) {

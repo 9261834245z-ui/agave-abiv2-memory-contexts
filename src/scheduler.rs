@@ -30,10 +30,7 @@ impl Scheduler {
             })
             .count() as u32;
 
-        let dependency_depth = tx
-            .write_accounts
-            .len()
-            .max(tx.read_accounts.len()) as u32;
+        let dependency_depth = tx.write_accounts.len().max(tx.read_accounts.len()) as u32;
 
         ConflictScore {
             hot_account_conflicts,
