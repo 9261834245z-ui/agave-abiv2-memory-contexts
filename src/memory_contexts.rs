@@ -6,15 +6,9 @@ pub enum PermissionState {
     Writable,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct AccountRegion {
     pub writable: bool,
-}
-
-impl Default for AccountRegion {
-    fn default() -> Self {
-        Self { writable: false }
-    }
 }
 
 #[derive(Debug, Default)]
