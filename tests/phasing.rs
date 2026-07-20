@@ -121,6 +121,7 @@ mod extended_verification {
 
         // Simulate update
         writable = true;
+        assert!(writable, "update should have taken effect before rollback");
 
         // Simulate panic and recovery
         writable = original; // manual rollback
@@ -132,8 +133,8 @@ mod extended_verification {
     #[test]
     fn random_cpi_stability_100_seeds() {
         for seed in 0u64..100 {
-            let mut regions = vec![false; 32];
-            let initial = regions.clone();
+            let mut regions = [false; 32];
+            let initial = regions;
             let mut frames: Vec<Vec<(usize, bool)>> = Vec::new();
 
             // Generate random operations
@@ -225,14 +226,14 @@ mod extended_verification {
     /// Maximum nesting depth (4 levels)
     #[test]
     fn max_nesting_depth_respected() {
-        let mut regions = vec![false; 8];
-        let initial = regions.clone();
+        let mut regions = [false; 8];
+        let initial = regions;
         let mut frames: Vec<Vec<(usize, bool)>> = Vec::new();
 
         // Push 4 levels
-        for i in 0..4 {
-            frames.push(vec![(i, regions[i])]);
-            regions[i] = true;
+        for (i, region) in regions.iter_mut().enumerate().take(4) {
+            frames.push(vec![(i, *region)]);
+            *region = true;
         }
 
         assert_eq!(frames.len(), 4);
@@ -250,16 +251,14 @@ mod extended_verification {
     /// Nested frame isolation
     #[test]
     fn nested_frames_isolation() {
-        let mut regions = vec![false; 8];
+        let mut regions = [false; 8];
 
         // Outer frame
-        let mut frame1: Vec<(usize, bool)> = vec![];
-        frame1.push((0, regions[0]));
+        let frame1: Vec<(usize, bool)> = vec![(0, regions[0])];
         regions[0] = true;
 
         // Inner frame
-        let mut frame2: Vec<(usize, bool)> = vec![];
-        frame2.push((1, regions[1]));
+        let frame2: Vec<(usize, bool)> = vec![(1, regions[1])];
         regions[1] = true;
 
         // Pop inner - outer unaffected
@@ -284,7 +283,7 @@ mod extended_verification {
         use std::time::Instant;
 
         let start = Instant::now();
-        let mut regions = vec![false; 32];
+        let mut regions = [false; 32];
         let mut frames: Vec<Vec<(usize, bool)>> = Vec::new();
 
         for i in 0..100_000 {
@@ -333,6 +332,6 @@ mod extended_verification {
         // With correct implementation: 1 entry
         // With clear() bug: 1 entry (but wrong value)
         assert_eq!(frame.len(), 1);
-        assert_eq!(frame[0].1, false, "must preserve first snapshot");
+        assert!(!frame[0].1, "must preserve first snapshot");
     }
 }

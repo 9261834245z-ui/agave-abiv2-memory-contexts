@@ -49,8 +49,8 @@ impl CoreState {
         amount: u128,
         edge_cost: i128,
     ) -> Result<(), &'static str> {
-        self.total_supply = self.total_supply.saturating_add(amount as u128);
-        self.total_minted = self.total_minted.saturating_add(amount as u128);
+        self.total_supply = self.total_supply.saturating_add(amount);
+        self.total_minted = self.total_minted.saturating_add(amount);
         self.total_base_sum = self.total_supply as i128
             - self.global_field.checked_mul(self.p as i128).unwrap_or(0)
             + edge_cost;
